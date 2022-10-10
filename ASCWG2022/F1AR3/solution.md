@@ -1,6 +1,6 @@
 #  F1AR3
 ##### Category:    Reverse Engineering
-##### Difficulity: Hard
+##### Difficulty: Hard
 ##### Points:      900
 ___
 
