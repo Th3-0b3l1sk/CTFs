@@ -7,40 +7,40 @@ ___
 The application asks for the flag and based on it either prints *Wrong Flag :(* or *Correct
 Flag :)*.<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image12.png?raw=true)
+![](./imgs/image12.png)
 
 Loading the application into Ghidra and going to the main function at `0x00401c40`, *the
 application base is at `0x00400000`*, We quickly see that the application is obfuscated
 using what seems to be a form of [control flow flattening](https://reverseengineering.stackexchange.com/questions/2221/what-is-a-control-flow-flattening-obfuscation-technique).<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image8.png?raw=true)
+![](./imgs/image8.png)
 
 There might be a tool out there that automatically de-obfuscates this form of obfuscation, but … <br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image3.png?raw=true)
+![](./imgs/image3.png)
 
 The application reads the flag into the ‘in_flag’ buffer using scanf(‘%s’). Just before the call to scanf, the application sets 0x29(41) bytes of the flag buffer to zero, which indicates that the flag might be 40 bytes (+ 1 byte for the ‘\n’).<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image9.png?raw=true)
+![](./imgs/image9.png)
 
 The in_flag is passed to the function at the address `0x00401af0` which is also obfuscated.<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image10.png?raw=true)
+![](./imgs/image10.png)
 
 *The method we will apply here to de-obfuscate the function will be applied to the rest of the application.*<br>
 The function consists of a loop that executes different *code blocks* based on the value of
 the `local_14` variable, which I will rename to `branch_controller`.<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image17.png?raw=true)
+![](./imgs/image17.png)
 
 At line 11 the `branch_controller` is set to `0x8a0c46dd( -0x75f3b923)` which marks the first block to be executed. Using the highlight feature in Ghidra we can quickly see where this value is referenced.<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image6.png?raw=true)
+![](./imgs/image6.png)
 
 At line 15, the first line in the while loop, the `branch_controller` is assigned its new value `0x59c92309` then a check if the local variable `local_10` is less than 0x28. Since the only argument of this function is the flag buffer, we assumed earlier that the flag length is 0x28, the function iterates over the flag, byte by byte, doing something. I will rename `local_10` to `index`. if the `index` is less than 0x28 then the `branch_controller` will be set to `-0x8cfc849`. Highlighting this value<br>
 
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image11.png?raw=true)
+![](./imgs/image11.png)
 
 casting the `aIn_Flag` simplifies the code to the following expression:
 
@@ -70,7 +70,7 @@ It can be seen that the expression is identical to `A xor B`<br>
 so the final expression is `aIn_Flag[index] ^ 0x2fd8b7ab ^ 0x2fd8b732` or `aIn_Flag[index] ^ 0x99`<br>
 To verify this claim run the application with the flag `a` and set a breakpoint at `0x00401BF1`, this instruction stores the result of an iteration memory.<br> What we should get is `0x61 ^ 0x99 = 0xF8`<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image18.png?raw=true)
+![](./imgs/image18.png)
 
 which is exactly what we got!<br>
 so the pseudo-code of the current function is:
@@ -82,7 +82,7 @@ so the pseudo-code of the current function is:
 
 The return of the current function is used to seed the `rand()`<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image2.png?raw=true)
+![](./imgs/image2.png)
 
 At line 41, the `branch_controller` of the main function is initialised. We will follow the
 same steps that we did in the previous function. 
@@ -92,13 +92,13 @@ same steps that we did in the previous function.
 The logic of the main function is
 illustrated in the following flowchart<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image4.png?raw=true)
+![](./imgs/image4.png)
 
 The first loop is executed *10 times on every 4 bytes* of the input/flag. The relevant code spans from address `0x00401ff4` to `0x00401ff4`. This code stores each 4 bytes of the input in reverse order so if the input is: `abcd1234` it will be stored as `bcda4321`<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image1.png?raw=true)
+![](./imgs/image1.png)
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image5.png?raw=true)
+![](./imgs/image5.png)
 
 The second loop, which is executed 8 times, starting at address `0x00402681` *xors the lower word(2 bytes) of every magic DWORD with a random value.* There are 4 magic QWORD(8 DWORDS)
 
@@ -107,7 +107,7 @@ The second loop, which is executed 8 times, starting at address `0x00402681` *xo
 3. magics[2] = 0xd15ea5edeadbabe;
 4. magics[3] = 0xbaadac1ddecea5ed;
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image14.png?raw=true)
+![](./imgs/image14.png)
 
 ***Note: ONLY the low WORD of each DWORD is changed/randomised.***<br>
 
@@ -123,15 +123,15 @@ Here are the hardcoded values
 4. real_flag[3] = 0x385d92a97b6f5534
 5. real_flag[4] = 0x6b21bf9035111826
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image13.png?raw=true)
+![](./imgs/image13.png)
 
 The return of the function at `0x004015a0`is compared agains those values. I will not go over de-obfuscating it as it’s identical to what we have done earlier.<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image15.png?raw=true)
+![](./imgs/image15.png)
 
 The function takes 4 parameters<br>
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image16.png?raw=true)
+![](./imgs/image16.png)
 
 `aDword_1` is the lower DWORD of the current 8 bytes of the flag and `aDword_2` is the upper DWORD. `aEight` is a constant = 8 (number of  iterations) and `aMagics` is the a pointer to the array of 4 QWORD magics.
 *(AFTER they have been randomised)*.<br>
@@ -228,7 +228,7 @@ We know the seed is calculated by: `seed += flag[i] ^ 0x99` which can have a max
         main()    
 
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/flag.png?raw=true)
+![](./imgs/flag.png)
 
-![](https://github.com/Th3-0b3l1sk/CTFs/blob/main/ASCWG2022/F1AR3/imgs/image7.png?raw=true)
+![](./imgs/image7.png)
 
