@@ -13,7 +13,7 @@ When executed, the program asks for a magic spell and it displays whether the sp
 Tracing with ltrace and strace didn't result in anything meaningful.  
 
 ****
-> **## Analysis*
+> **## Analysis**
 ****
 
 For some reason, the challenge kept crashing *gdb* and debugging it with *Ghidra* was not a straightforward process. I tried to debug it with *pwndbg* and for some reason it didn't crash and as such I will be using *Ghidra* for static analysis and *pwndbg* for dynamic execution. Before doing the heavy lifting, I will take a moment to appreciate this piece of art.
