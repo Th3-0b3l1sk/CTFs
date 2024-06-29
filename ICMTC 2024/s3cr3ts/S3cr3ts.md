@@ -2,17 +2,27 @@
 > **## Introduction**
 ****
 
-S3cr3ts was a reverse engineering challenge in the ICMTC 2024 qualifications rounds. It was categorized as hard. The challenge file is a 64-bit non-stripped binary written in Go. What could *go* wrong?![[./imgs/Pasted image 20240628141048.png]]
-When executed, the program asks for a magic spell and it displays whether the spell, the input, was valid or not. ![[./imgs/Pasted image 20240628141428.png]]
+S3cr3ts was a reverse engineering challenge in the ICMTC 2024 qualifications rounds. It was categorized as hard. The challenge file is a 64-bit non-stripped binary written in Go. What could *go* wrong?
+
+![img](./imgs/Pasted image 20240628141048.png)
+
+When executed, the program asks for a magic spell and it displays whether the spell, the input, was valid or not. 
+
+![img](./imgs/Pasted image 20240628141428.png)
+
 Tracing with ltrace and strace didn't result in anything meaningful.  
 
 ****
-> **## Analysis** ****
+> **## Analysis*
 ****
 
-For some reason, the challenge kept crashing *gdb* and debugging it with *Ghidra* was not a straightforward process. I tried to debug it with *pwndbg* and for some reason it didn't crash and as such I will be using *Ghidra* for static analysis and *pwndbg* for dynamic execution. Before doing the heavy lifting, I will take a moment to appreciate this piece of art.![[./imgs/vi.png]]
+For some reason, the challenge kept crashing *gdb* and debugging it with *Ghidra* was not a straightforward process. I tried to debug it with *pwndbg* and for some reason it didn't crash and as such I will be using *Ghidra* for static analysis and *pwndbg* for dynamic execution. Before doing the heavy lifting, I will take a moment to appreciate this piece of art.
 
-The main function of the program, `main.main`, starts at address `0x004b2b20` with the image base set to `0x00400000`. After analyzing the function for some times, it can be logically divided into 4 blocks  ![[./imgs/Pasted image 20240628143115.png]]
+![img](./imgs/vi.png)
+
+The main function of the program, `main.main`, starts at address `0x004b2b20` with the image base set to `0x00400000`. After analyzing the function for some times, it can be logically divided into 4 blocks  
+
+![img](./imgs/Pastedimage20240628143115.png)
 
 The *initialization* block sets up the state of the function. The second block consists of multiple code constructs that each does some specific *processing.* The third block is all about error handling and irrelevant for our analysis. The final block consists of a sequence of *checks* that verifies whether we should entered the correct spell and get the flag. 
 
@@ -20,43 +30,78 @@ The *initialization* block sets up the state of the function. The second block c
 > **## Block 1: Initialization**
 ****
 
-As the name suggests, the code within this block performs various actions that initialize the main state of the program. The basic block starting at address `0x004b2b3` initializes a map structure, which is an associative container of key/value pairs similar to a dictionary in python. The function returns a reference to a structure of type `hmap` that acts as a header for the map structure that we can use to lookup the items in the map.  [makemap](https://go.dev/src/runtime/map.go)  | [hmap](https://go.dev/src/runtime/map.go) ![[./imgs/Pasted image 20240628144828.png]]
+As the name suggests, the code within this block performs various actions that initialize the main state of the program. The basic block starting at address `0x004b2b3` initializes a map structure, which is an associative container of key/value pairs similar to a dictionary in python. The function returns a reference to a structure of type `hmap` that acts as a header for the map structure that we can use to lookup the items in the map.  [makemap](https://go.dev/src/runtime/map.go)  | [hmap](https://go.dev/src/runtime/map.go) 
 
-After the map structure is allocated, the program iterates 255 times where it initializes the items in the allocated structure.![[./imgs/Pasted image 20240628145521.png]]
-The basic block starting at `0x004b2bb3` initializes the items in the previously allocated structure. The function `runtime.mapassing_faststr` provides a mechanism to efficiently access map items where the key is of a string type![[./imgs/Pasted image 20240628145639.png]]
-The register `rcx` is used to index two arrays in this block. The first one starting at address `0x004fa760` is a byte array of values from 0x00 all the way to 0xFF.![[./imgs/Pasted image 20240628145935.png]]
-The second array, which starts at address `0x004fb988`, is an array of strings. Go doesn't represent strings using c-style null terminators, instead, each string consists of a structure of 2 elements: *a pointer to the first byte of the string* and *the size of the string.* [go-strings](https://cs.opensource.google/go/go/+/master:src/strings/builder.go;l=53?q=String&ss=go%2Fgo) ![[./imgs/Pasted image 20240628150325.png]]
-The instruction at address `0x004b2bd3` in the block loads the string pointer of the key to be initialized and passes it to `runtime.mapassign_faststr` which returns a reference to the element with that key in the map. The instruction at address `0x004b2bf3` sets the byte obtained from the first array to the returned element i.e. when in the first iteration when `rcx` is zero the value from the first byte is at address `004fa760` which equals `0` and the corresponding key is address `0x4fb988` which corresponds to the string `Abraxas`![[./imgs/Pasted image 20240628150744.png]]
+![img](./imgs/Pastedimage20240628144828.png)
+
+After the map structure is allocated, the program iterates 255 times where it initializes the items in the allocated structure.
+
+![img](./imgs/Pastedimage20240628145521.png)
+
+The basic block starting at `0x004b2bb3` initializes the items in the previously allocated structure. The function `runtime.mapassing_faststr` provides a mechanism to efficiently access map items where the key is of a string type![img](./imgs/Pasted image 20240628145639.png)
+The register `rcx` is used to index two arrays in this block. The first one starting at address `0x004fa760` is a byte array of values from 0x00 all the way to 0xFF.
+
+![img](./imgs/Pastedimage20240628145935.png)
+
+The second array, which starts at address `0x004fb988`, is an array of strings. Go doesn't represent strings using c-style null terminators, instead, each string consists of a structure of 2 elements: *a pointer to the first byte of the string* and *the size of the string.* [go-strings](https://cs.opensource.google/go/go/+/master:src/strings/builder.go;l=53?q=String&ss=go%2Fgo) 
+
+![img](./imgs/Pastedimage 0240628150325.png)
+
+The instruction at address `0x004b2bd3` in the block loads the string pointer of the key to be initialized and passes it to `runtime.mapassign_faststr` which returns a reference to the element with that key in the map. The instruction at address `0x004b2bf3` sets the byte obtained from the first array to the returned element i.e. when in the first iteration when `rcx` is zero the value from the first byte is at address `004fa760` which equals `0` and the corresponding key is address `0x4fb988` which corresponds to the string `Abraxas`
+
+![img](./imgs/Pastedimage20240628150744.png)
+
 So the effect of this iteration is `map['Abraxas'] = 0x00`. 
 
-After the 255 elements are initialized, the program moves onto the third part of the initialization process. The basic blocks starting at address `0x004b2c0e` and ending at address `0x004b2cb9` initialize an array of 100 dwords to randomly generated values. ![[./imgs/Pasted image 20240628151628.png]]
-Which is verified by executing the application and inspecting the aforementioned array after it's initialized. ![[./imgs/Pasted image 20240628151848.png]]
+After the 255 elements are initialized, the program moves onto the third part of the initialization process. The basic blocks starting at address `0x004b2c0e` and ending at address `0x004b2cb9` initialize an array of 100 dwords to randomly generated values. 
+
+![img](./imgs/Pastedimage20240628151628.png)
+
+Which is verified by executing the application and inspecting the aforementioned array after it's initialized. 
+
+![img](./imgs/Pastedimage20240628151848.png)
+
 These values are random and will change between different executions of the program. 
 
-The final part in the initialization is the program asking from us to enter the spell. The basic block starting at address `0x004b2cb9` reads in our input, instruction `0x004b2d60`, and splits the input string into an array of comma separated strings, instruction `0x004b2d89.` ![[./imgs/Pasted image 20240628152528.png]]
+The final part in the initialization is the program asking from us to enter the spell. The basic block starting at address `0x004b2cb9` reads in our input, instruction `0x004b2d60`, and splits the input string into an array of comma separated strings, instruction `0x004b2d89.` 
 
-The program then loops over the result of the comma split  using each value as a key into the previously initialized map, instructions `0x004b2dd9` and `0x004b2df1`, and then store the value of the referenced element at some array, instruction `0x004b2db4`. ![[./imgs/Pasted image 20240628153056.png]]
+![img](./imgs/Pastedimage20240628152528.png)
 
-This hints that the string we enter to the program should be a comma separated string, with the separated strings from the array of strings at `0x004fb988` which was used in the map initialization. We can verify this by entering the string `Abraxas,Abraxas` and setting a breakpoint at `0x004b2db4`.![[./imgs/Pasted image 20240628153445.png]]
+The program then loops over the result of the comma split  using each value as a key into the previously initialized map, instructions `0x004b2dd9` and `0x004b2df1`, and then store the value of the referenced element at some array, instruction `0x004b2db4`. 
+
+![img](./imgs/Pastedimage20240628153056.png)
+
+This hints that the string we enter to the program should be a comma separated string, with the separated strings from the array of strings at `0x004fb988` which was used in the map initialization. We can verify this by entering the string `Abraxas,Abraxas` and setting a breakpoint at `0x004b2db4`.
+
+![img](./imgs/Pastedimage20240628153445.png)
+
 Which is what we expected!
 So to wrap up this block of the program, we discovered that:
 1. the program allocates and initializes a map structure where the keys are strings and the values are byte-sized integers.
 2. the program initializes an array of 100 dwords with randomly generated integers.
 3. the program splits our input on commas, iterates on each substring and stores its value from the map in step1 to some array.
 The next part is where the mysterious about the arrays will be revealed. 
+
 ****
 ****
 > **## Computations**
 ****
 
-The next part of the program is a big loop with a jump table that controls the flow within the loop. ![[./imgs/Pasted image 20240628155736.png]]
-This part of the program begins with the basic block at address `0x004b2e0d` that initializes the loop counter with the condition it is less than `10'000`. The next block, starting at address  `0x004b2e1d`,  reads a byte each iteration from the array initialized in step3 in the past part. If that value is greater than `0x15` the program displays the failure message that we encountered earlier, at basic block `0x004b3d7d`.
-![[./imgs/Pasted image 20240628155911.png]]
+The next part of the program is a big loop with a jump table that controls the flow within the loop. 
 
-However, if the value is less than `0x15`, it's used as an offset into the jump table. ***In other words, our input, somehow, controls the flow of the program.***![[./imgs/Pasted image 20240628160246.png]]
+![img](./imgs/Pastedimage20240628155736.png)
+
+This part of the program begins with the basic block at address `0x004b2e0d` that initializes the loop counter with the condition it is less than `10'000`. The next block, starting at address  `0x004b2e1d`,  reads a byte each iteration from the array initialized in step3 in the past part. If that value is greater than `0x15` the program displays the failure message that we encountered earlier, at basic block `0x004b3d7d`.
+
+![img](./imgs/Pastedimage20240628155911.png)
+
+However, if the value is less than `0x15`, it's used as an offset into the jump table. ***In other words, our input, somehow, controls the flow of the program.***
+
+![img](./imgs/Pastedimage20240628160246.png)
+
 The jump table can transfer control each iteration to one of `21` blocks of code, based on the input we entered. The following is an overview of the functionality of each block. 
 
-The first block, which starts at address `0x004b2e43`, is entered if the value from our input is `1`, after it's decremented. The program reads the next byte from the input array and stores it in `EDX`. NOTE THAT VALUE MUST BE LESS THAN 100. ![[./imgs/Pasted image 20240628161002.png]]
+The first block, which starts at address `0x004b2e43`, is entered if the value from our input is `1`, after it's decremented. The program reads the next byte from the input array and stores it in `EDX`. NOTE THAT VALUE MUST BE LESS THAN 100. ![img](./imgs/Pasted image 20240628161002.png)
 The block then reads another value from the input array, *the second value so far in this block*, and stores it in `R8D`. That value is then added to the value from the randomly generated array, *in the previous part step2*, using `EDX` as index into that array. The pseudo code of this block can be represented as:
 
 ```c
@@ -325,7 +370,9 @@ Moving on to the final part of the program, the last instruction handler that va
 > **## Checks**
 ****
 
-The instruction handler, starting at address `0x004b381b`, handles the last instruction in the VM. Its purpose is to validate the data memory, *that was initially set to all random values*, against hardcoded values. There is a sequence of `26` validation checks. To get to the basic block at `0x004b3c7d` that displays our flag, all of these checks must pass. ![[./imgs/Pasted image 20240628225628.png]]
+The instruction handler, starting at address `0x004b381b`, handles the last instruction in the VM. Its purpose is to validate the data memory, *that was initially set to all random values*, against hardcoded values. There is a sequence of `26` validation checks. To get to the basic block at `0x004b3c7d` that displays our flag, all of these checks must pass. 
+
+![img](./imgs/Pastedimage20240628225628.png)
 
 ****
 ****
@@ -337,20 +384,26 @@ From the previous, we can outline the solution in two steps:
 1. We first need to get the values of each dword in the data memory that will match the hardcoded state. 
 2. Then, we need to figure out the correct sequence of instructions that will always get us to that state.
 
-To achieve the first goal, we can use an equation solver to solve the set of constraints in the *checks* part of the program. There is a total of 98 dwords from the data memory involved in the checks. The Ghidra decompiler makes this process a bit easier, as it lists the *checks* in a form that's easy to translate to Z3 ![[./imgs/Pasted image 20240628230330.png]]
+To achieve the first goal, we can use an equation solver to solve the set of constraints in the *checks* part of the program. There is a total of 98 dwords from the data memory involved in the checks. The Ghidra decompiler makes this process a bit easier, as it lists the *checks* in a form that's easy to translate to Z3 
+
+![img](./imgs/Pastedimage20240628230330.png)
+
 To get correct results, we need to encode these constraints using indexes into the data memory. So instead of `(long)register0x00000020 + -0x27e4)` it should be something like `data_array[5]`. This way we can get the expected values *and* their correct locations in the data memory. This can be easily achieved by subtracting the base of the data memory, *relative to rsp*, from the offsets shown in the Ghidra decompilation. 
 We noted from the previous analysis that when the data memory was first initialized to random values, the array was indexed using offset `0x68` from `RSP` instruction `0x004b2cab`.
-![[./imgs/Pasted image 20240628230834.png]]
+
+![img](./imgs/Pastedimage20240628230834.png)
 
 The instructions in the *checks* part access the data memory in the same manner, *an offset relative to `RSP`*
-![[./imgs/Pasted image 20240628231137.png]]
+
+![img](./imgs/Pastedimage20240628231137.png)
 
 Since the value of `RSP` didn't change at all during the execution of the function, *the stack was setup at the very beginning of the function and no push/pop instructions are used*, we can compute the indices of the dword by subtracting the data memory base, *offset `0x68`*, from the offsets in the Ghidra decompilation then divide the output by `4`, *the size of a dword.* For instance, the memory access at instruction `0x00b381b` access `RSP` at offset `0x1f0`. To get the corresponding index subtract `0x68` from `0x1f0` then divide by `4` we get index (0x1f0 - 0x64) / 4 = `98`. So this instruction is accessing the dword at index `98` into the data memory. The attached file `z3sec.py` is the result of this process. 
 
 Executing the script does find a satisfiable state that matches the hardcoded state in the *checks*. Two of these dwords, *indices 13 and 60*, are not checked at all and can have any arbitrary value. 
 
 As a sanity check, *to verify that these dwords indeed satisfy the state*, I used a gdb python script to overwrite the data memory with the result from Z3 and start execution from instruction `0x004b381b`, the very first in the checks section. If we continued execution and we got from that instruction to `0x004b3c7d` then indeed the values are correct. 
-![[./imgs/testing_dwords.gif]]
+
+![img](./imgs/testing_dwords.gif)
 
 Step 1 is a success. 
 
@@ -362,7 +415,9 @@ The first step in our compiler is to extract the available instructions. We can 
 
 Now to the compiler, we need to implement two instructions: zeroing out a memory address and writing a value to a memory address. 
 
-I will use multiplication by 0 and left shifts to do this. The file [s3compiler.py](./code/s3compiler.py) handles the generation of the valid instructions. Now write the instruction stream to a file, *it's too long*, and redirect it to the challenge, and that's it! it's finally over.![[./imgs/flag.gif]]
+I will use multiplication by 0 and left shifts to do this. The file [s3compiler.py](./code/s3compiler.py) handles the generation of the valid instructions. Now write the instruction stream to a file, *it's too long*, and redirect it to the challenge, and that's it! it's finally over.
+
+![img](./imgs/flag.gif)
 
 **NOTE:**
 To get the flag, you need to have a file in the same directory as the challenge with the following script. The basic block at `0x004b2cab` executes the command to get the flag, *a dynamic flag*, that's how the author @joezid designed it. 

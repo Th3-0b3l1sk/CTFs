@@ -1,0 +1,2 @@
+#!/bin/bash
+printf 'EGCERT{F1ght_t1LL_th3_3nd_n0_m4tt3r_wh4t_3133337!!_%x}\n' $(( $(date +%s) ^ 0x13333337 ))
