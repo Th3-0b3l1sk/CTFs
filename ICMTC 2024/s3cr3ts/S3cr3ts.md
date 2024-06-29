@@ -48,7 +48,7 @@ The register `rcx` is used to index two arrays in this block. The first one star
 
 The second array, which starts at address `0x004fb988`, is an array of strings. Go doesn't represent strings using c-style null terminators, instead, each string consists of a structure of 2 elements: *a pointer to the first byte of the string* and *the size of the string.* [go-strings](https://cs.opensource.google/go/go/+/master:src/strings/builder.go;l=53?q=String&ss=go%2Fgo) 
 
-![img](./imgs/Pastedimage 0240628150325.png)
+![img](./imgs/Pastedimage20240628150325.png)
 
 The instruction at address `0x004b2bd3` in the block loads the string pointer of the key to be initialized and passes it to `runtime.mapassign_faststr` which returns a reference to the element with that key in the map. The instruction at address `0x004b2bf3` sets the byte obtained from the first array to the returned element i.e. when in the first iteration when `rcx` is zero the value from the first byte is at address `004fa760` which equals `0` and the corresponding key is address `0x4fb988` which corresponds to the string `Abraxas`
 
