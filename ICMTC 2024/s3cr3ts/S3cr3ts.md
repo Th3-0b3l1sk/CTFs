@@ -4,11 +4,11 @@
 
 S3cr3ts was a reverse engineering challenge in the ICMTC 2024 qualifications rounds. It was categorized as hard. The challenge file is a 64-bit non-stripped binary written in Go. What could *go* wrong?
 
-![img](./imgs/Pasted image 20240628141048.png)
+![img](./imgs/Pastedimage20240628141048.png)
 
 When executed, the program asks for a magic spell and it displays whether the spell, the input, was valid or not. 
 
-![img](./imgs/Pasted image 20240628141428.png)
+![img](./imgs/Pastedimage20240628141428.png)
 
 Tracing with ltrace and strace didn't result in anything meaningful.  
 
@@ -38,7 +38,10 @@ After the map structure is allocated, the program iterates 255 times where it in
 
 ![img](./imgs/Pastedimage20240628145521.png)
 
-The basic block starting at `0x004b2bb3` initializes the items in the previously allocated structure. The function `runtime.mapassing_faststr` provides a mechanism to efficiently access map items where the key is of a string type![img](./imgs/Pasted image 20240628145639.png)
+The basic block starting at `0x004b2bb3` initializes the items in the previously allocated structure. The function `runtime.mapassing_faststr` provides a mechanism to efficiently access map items where the key is of a string type
+
+![img](./imgs/Pastedimage20240628145639.png)
+
 The register `rcx` is used to index two arrays in this block. The first one starting at address `0x004fa760` is a byte array of values from 0x00 all the way to 0xFF.
 
 ![img](./imgs/Pastedimage20240628145935.png)
@@ -101,7 +104,10 @@ However, if the value is less than `0x15`, it's used as an offset into the jump 
 
 The jump table can transfer control each iteration to one of `21` blocks of code, based on the input we entered. The following is an overview of the functionality of each block. 
 
-The first block, which starts at address `0x004b2e43`, is entered if the value from our input is `1`, after it's decremented. The program reads the next byte from the input array and stores it in `EDX`. NOTE THAT VALUE MUST BE LESS THAN 100. ![img](./imgs/Pasted image 20240628161002.png)
+The first block, which starts at address `0x004b2e43`, is entered if the value from our input is `1`, after it's decremented. The program reads the next byte from the input array and stores it in `EDX`. NOTE THAT VALUE MUST BE LESS THAN 100. 
+
+![img](./imgs/Pastedimage20240628161002.png)
+
 The block then reads another value from the input array, *the second value so far in this block*, and stores it in `R8D`. That value is then added to the value from the randomly generated array, *in the previous part step2*, using `EDX` as index into that array. The pseudo code of this block can be represented as:
 
 ```c
