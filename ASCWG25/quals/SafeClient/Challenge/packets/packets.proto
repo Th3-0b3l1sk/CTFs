@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package packet;
+
+message InitPacket {
+}
+
+message OptionsPacket {
+  repeated string options = 1;
+
+}
+
+message FileDetails {
+  string filename = 1;
+  repeated bytes data = 2;
+}
+
+message OptionPacket {
+  int32 id = 1;
+  repeated FileDetails details = 2;
+}
+
+message LoginPacket {
+  string username = 1;
+  string password = 2;
+}
+
+message KeyExchangePacket {
+  string public_key = 1;
+}
+
+message Packet {
+  int32 packet_id = 1;
+  int32 packet_size = 2;
+  oneof packet_type {
+    InitPacket init = 3;
+    LoginPacket login = 4;
+    KeyExchangePacket key_exchange = 5;
+    OptionsPacket options = 6;
+    OptionPacket option = 7; 
+  }
+  string signature  = 8;
+}

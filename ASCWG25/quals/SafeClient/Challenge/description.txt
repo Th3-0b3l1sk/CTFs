@@ -1,0 +1,4 @@
+I used a custom client to securely upload some critical files to my backup server. 
+Everything worked perfectly, until I forgot the credentials. Now I’m locked out of my own data. 
+All I have left is the client binary, a few log files, and a packet capture of the upload session. 
+The files are in there somewhere… if you can find a way to extract them.

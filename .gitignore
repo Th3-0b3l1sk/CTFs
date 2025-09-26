@@ -1,0 +1,39 @@
+# Build artifacts
+*.o
+*.obj
+*.so
+*.a
+*.out
+*.exe
+*.dll
+
+# Build directories
+/build/
+/bin/
+/lib/
+
+# CMake and Make
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+compile_commands.json
+
+# Debugging
+*.dSYM/
+*.log
+
+# Editor / IDE files
+*.swp
+*.swo
+*.user
+*.vcxproj*
+*.code-workspace
+*.idea/
+*.vscode/
+
+# Ignore all dotfiles (hidden files & folders)
+.*
+!.gitignore
+!.gitattributes
+
